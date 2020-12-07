@@ -1,0 +1,6 @@
+---
+collections:
+  - community.kubernetes
+roles:
+  - geerlingguy.helm
+  - pacifica.ansible_certinfra

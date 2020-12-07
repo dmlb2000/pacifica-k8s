@@ -1,0 +1,19 @@
+---
+- name: Setup Keycloak
+  hosts: localhost
+  tasks:
+    - name: Start Keycloak with Helm
+      community.kubernetes.helm:
+        name: keycloak
+        update_repo_cache: yes
+        chart_ref: codecentric/keycloak
+        release_namespace: "{{ release_namespace }}"
+        values:
+          fullnameOverride: "{{ keycloak_fqdn }}"
+          extraEnv: |
+            - name: PROXY_ADDRESS_FORWARDING
+              value: "true"
+            - name: KEYCLOAK_USER
+              value: admin
+            - name: KEYCLOAK_PASSWORD
+              value: admin

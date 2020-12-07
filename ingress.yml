@@ -1,0 +1,31 @@
+---
+- name: Define all the Ingress
+  hosts: localhost
+  tasks:
+    - name: Create Keycloak Ingress
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        namespace: "{{ release_namespace }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            annotations:
+              cert-manager.io/issuer: ca-issuer
+            name: keycloak-ingress
+          spec:
+            tls:
+              - hosts:
+                  - keycloak.docker.internal
+                secretName: keycloak-tls-secret
+            rules:
+              - host: keycloak.docker.internal
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: keycloak-http
+                          port:
+                            number: 80

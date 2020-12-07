@@ -1,0 +1,28 @@
+- hosts: localhost
+  vars:
+    yaml_files:
+      - remote_path: static/provider/cloud/deploy.yaml
+        local_path: deploy.yaml
+  tasks:
+    - name: Make Temporary Directory
+      tempfile:
+        state: directory
+        suffix: nginx-ingress
+      register: tempdir_nginx_operator
+      changed_when: false
+    - name: Download Nginx Operator Deploy
+      get_url:
+        url: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-{{ nginx_ingress_version }}/deploy/{{ item.remote_path }}"
+        dest: "{{ tempdir_nginx_operator.path }}/{{ item.local_path }}"
+      changed_when: false
+      loop: "{{ yaml_files }}"
+    - name: Define Nginx Controller Mandatory
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        src: "{{ tempdir_nginx_operator.path }}/{{ item.local_path }}"
+      loop: "{{ yaml_files }}"
+    - name: Remote Temporary Directory
+      file:
+        state: absent
+        path: "{{ tempdir_nginx_operator.path }}"
+      changed_when: false

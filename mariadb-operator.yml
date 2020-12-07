@@ -1,0 +1,24 @@
+- name: Setup Mariadb Operator
+  hosts: localhost
+  tasks:
+    - name: Make Temporary Directory
+      tempfile:
+        state: directory
+        suffix: nginx-ingress
+      register: tempdir_mariadb_operator
+      changed_when: false
+    - name: Download MariaDB Operator Deploy
+      get_url:
+        url: "https://raw.githubusercontent.com/geerlingguy/mariadb-operator/{{ mariadb_operator_version }}/deploy/mariadb-operator.yaml"
+        dest: "{{ tempdir_mariadb_operator.path }}/deploy.yml"
+      changed_when: false
+    - name: Define MariaDB Operator
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        namespace: "{{ release_namespace }}"
+        src: "{{ tempdir_mariadb_operator.path }}/deploy.yml"
+    - name: Remote Temporary Directory
+      file:
+        state: absent
+        path: "{{ tempdir_mariadb_operator.path }}"
+      changed_when: false

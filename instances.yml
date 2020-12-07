@@ -1,0 +1,33 @@
+---
+- name: Create Services
+  hosts: localhost
+  tasks:
+    - name: Create MariaDB
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        namespace: "{{ release_namespace }}"
+        definition:
+          apiVersion: mariadb.mariadb.com/v1alpha1
+          kind: MariaDB
+          metadata:
+            name: drupal-mariadb
+          spec:
+            masters: 1
+            replicas: 0
+            mariadb_password: drupal
+            mariadb_image: mariadb:10.4
+            mariadb_pvc_storage_request: 10Gi
+    - name: Create Solr
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        namespace: "{{ release_namespace }}"
+        definition:
+          apiVersion: solr.bloomberg.com/v1beta1
+          kind: SolrCloud
+          metadata:
+            name: solr
+          spec:
+            replicas: 3
+            solrImage:
+              tag: "7.7.2"
+            solrJavaMem: "-Xms300m -Xmx300m"

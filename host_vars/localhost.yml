@@ -1,0 +1,14 @@
+k8s_state: present
+release_namespace: default
+cert_manager_version: "v1.1.0"
+nginx_ingress_version: "v0.41.2"
+mariadb_operator_version: "0.0.3"
+zookeeper_operator_version: "0.2.9"
+solr_operator_version: "v0.2.6"
+
+keycloak_fqdn: keycloak
+
+private_key_dir: "{{ playbook_dir }}/private"
+cert_dir: "{{ playbook_dir }}/certs"
+trust_chain_dir: "{{ playbook_dir }}/anchors"
+update_trusted_ca_command: /bin/true

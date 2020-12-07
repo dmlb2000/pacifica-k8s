@@ -1,0 +1,12 @@
+- name: Setup ZooKeeper Operator
+  hosts: localhost
+  tasks:
+    - name: Deploy ZooKeeper Operator
+      community.kubernetes.helm:
+        name: zookeeper-operator
+        update_repo_cache: yes
+        chart_ref: pravega/zookeeper-operator
+        release_namespace: "{{ release_namespace }}"
+        values:
+          image:
+            tag: "{{ zookeeper_operator_version }}"
