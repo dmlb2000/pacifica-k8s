@@ -1,0 +1,111 @@
+---
+- name: Start GitLab Services
+  hosts: localhost
+  environment:
+    SSL_CERT_FILE: "{{ playbook_dir }}/certs/cacert.pem"
+    REQUESTS_CA_BUNDLE: "{{ playbook_dir }}/certs/cacert.pem"
+  pre_tasks:
+    - include_tasks: tasks/dns-domain.yml
+  tasks:
+    - name: Create Secret if not present
+      set_fact:
+        keycloak_client_secret: "{{ inventory_hostname | to_uuid }}"
+      when: keycloak_client_secret is undefined
+    - name: Set Keycloak Base URL
+      set_fact:
+        keycloak_base_url: "https://keycloak.{{ http_app_routing_domain }}/auth"
+        keycloak_redirect_uris:
+          - "https://gitlab.{{ http_app_routing_domain }}/*"
+          - "https://registry.{{ http_app_routing_domain }}/*"
+          - "https://minio.{{ http_app_routing_domain }}/*"
+    - name: Create a Keycloak Client for Drupal
+      keycloak_client:
+        auth_keycloak_url: "{{ keycloak_base_url }}"
+        auth_realm: "{{ keycloak_auth_realm }}"
+        auth_username: "{{ keycloak_auth_username }}"
+        auth_password: "{{ keycloak_auth_password }}"
+        client_id: "{{ keycloak_client_id }}"
+        state: present
+    - name: Set the Protocol Mappers for the client
+      keycloak_client:
+        auth_keycloak_url: "{{ keycloak_base_url }}"
+        auth_realm: "{{ keycloak_auth_realm }}"
+        auth_username: "{{ keycloak_auth_username }}"
+        auth_password: "{{ keycloak_auth_password }}"
+        client_id: "{{ keycloak_client_id }}"
+        secret: "{{ keycloak_client_secret }}"
+        description: "{{ keycloak_description }}"
+        redirect_uris: "{{ keycloak_redirect_uris }}"
+        protocol_mappers:
+          - name: "{{ keycloak_client_id }}"
+            protocol: openid-connect
+            protocolMapper: oidc-audience-mapper
+            config:
+              included.client.audience: "{{ keycloak_client_id }}"
+              id.token.claim: true
+              access.token.claim: true
+              included.custom.audience: "{{ keycloak_client_id }}"
+        state: present
+    - name: Set OmniAuth Provider Fact
+      set_fact:
+        omniauth_content: |
+          name: openid_connect
+          label: Keycloak
+          args:
+            scope:
+              - email
+            response_type: code
+            issuer: {{ keycloak_base_url }}/realms/{{ keycloak_auth_realm }}
+            discovery: true
+            client_auth_method: query
+            uid_field: email
+            send_scope_to_token_endpoint: false
+            client_options:
+              identifier: {{ keycloak_client_id }}
+              secret: '{{ keycloak_client_secret }}'
+              redirect_uri: https://gitlab.{{ http_app_routing_domain }}/users/auth/openid_connect/callback
+    - name: Create Keycloak OmniAuth Secret
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        namespace: "{{ release_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitlab-keycloak
+          data:
+            provider: "{{ omniauth_content | b64encode }}"
+    - name: Create Gitlab Helm
+      community.kubernetes.helm:
+        name: gitlab
+        update_repo_cache: yes
+        chart_ref: gitlab/gitlab
+        release_namespace: "{{ release_namespace }}"
+        values:
+          certmanager:
+            install: false
+          nginx-ingress:
+            enabled: false
+          certmanager-issuer:
+            email: david.brown@pnnl.gov
+          global:
+            ingress:
+              class: nginx
+              tls:
+                enabled: true
+              annotations:
+                cert-manager.io/issuer: ca-issuer
+                certmanager.k8s.io/issuer: ca-issuer
+            appConfig:
+              omniauth:
+                enabled: true
+                providers:
+                  - secret: gitlab-keycloak
+                syncProfileAttributes: ['email']
+                allowSingleSignOn: true
+            hosts:
+              domain: "{{ http_app_routing_domain }}"
+              registry:
+                https: true
+              gitlab:
+                https: true

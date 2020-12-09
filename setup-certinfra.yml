@@ -1,8 +1,10 @@
 ---
 - name: Setup Certificate Infrastructure
   hosts: localhost
-  become: yes
-  pre_tasks:
+  vars:
+    tls_crt: certs/pacifica_intermediate.io.crt
+    tls_key: private/pacifica_intermediate.io.pem
+  tasks:
     - name: make some directories
       file:
         state: directory
@@ -11,14 +13,33 @@
         - "{{ playbook_dir }}/private"
         - "{{ playbook_dir }}/certs"
         - "{{ playbook_dir }}/anchors"
-  roles:
-    - role: pacifica.ansible_certinfra
-- name: Load Certs and Keys
-  hosts: localhost
-  vars:
-    tls_crt: certs/pacifica_intermediate.io.crt
-    tls_key: private/pacifica_intermediate.io.pem
-  tasks:
+    - name: Include the certinfra role
+      include_role:
+        name: pacifica.ansible_certinfra
+      vars:
+        private_key_dir: "{{ playbook_dir }}/private"
+        cert_dir: "{{ playbook_dir }}/certs"
+        trust_chain_dir: "{{ playbook_dir }}/anchors"
+        update_trusted_ca_command: /bin/true
+        install_packages: false
+    - name: Get certifi bundle location
+      command: "{{ ansible_python_interpreter }} -c 'import certifi; print(certifi.where())'"
+      register: certifi_bundle_result
+    - name: Get Certifi Cert Bundle
+      slurp:
+        src: "{{ certifi_bundle_result.stdout }}"
+      register: certifi_bundle_content
+    - name: Get Local Cert Bundle
+      slurp:
+        src: certs/pacifica_chain.io.crt
+      register: local_bundle_content
+    - name: Create Local CA Bundle
+      copy:
+        dest: certs/cacert.pem
+        mode: 0644
+        content: |
+          {{ certifi_bundle_content['content'] | b64decode }}
+          {{ local_bundle_content['content'] | b64decode }}
     - name: Setup Cert Manager
       community.kubernetes.helm:
         name: cert-manager
@@ -40,15 +61,3 @@
           data:
             tls.crt: "{{ lookup('file', tls_crt) | b64encode }}"
             tls.key: "{{ lookup('file', tls_key) | b64encode }}"
-    - name: Create Issuer
-      community.kubernetes.k8s:
-        state: "{{ k8s_state }}"
-        namespace: "{{ release_namespace }}"
-        definition:
-          apiVersion: cert-manager.io/v1
-          kind: Issuer
-          metadata:
-            name: ca-issuer
-          spec:
-            ca:
-              secretName: ca-key-pair

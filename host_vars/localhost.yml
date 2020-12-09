@@ -7,8 +7,20 @@ zookeeper_operator_version: "0.2.9"
 solr_operator_version: "v0.2.6"
 
 keycloak_fqdn: keycloak
+keycloak_auth_username: admin
+keycloak_auth_password: admin
+keycloak_auth_realm: master
+keycloak_client_id: gitlab
+keycloak_description: Client to configure with GitLab services.
 
-private_key_dir: "{{ playbook_dir }}/private"
-cert_dir: "{{ playbook_dir }}/certs"
-trust_chain_dir: "{{ playbook_dir }}/anchors"
-update_trusted_ca_command: /bin/true
+ssh_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+aks_client_id: 72e8d42f-8b42-41b3-bf00-840ba196e8e6
+aks_client_secret: '8.POeq5C-5q_g~mU_ru3W0HgEZ44eIFKgP'
+azure_resource_group: "{{ ansible_user_id }}resources"
+azure_username: "{{ ansible_user_id }}"
+azure_location: westus
+azure_cli_cmd: "{{ lookup('env', 'WORKON_HOME') | default('~/.virtualenvs') }}/azure-cli/bin/az"
+azure_aks_version: 1.19.3
+azure_aks_name: DataHub
+azure_aks_count: 5
+azure_aks_size: Standard_D4s_v3

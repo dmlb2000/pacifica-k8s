@@ -1,6 +1,7 @@
 ---
-- import_playbook: setup-certinfra.yml
+- import_playbook: azure-k8s.yml
 - import_playbook: setup-helm.yml
+- import_playbook: setup-certinfra.yml
 - import_playbook: nginx-ingress.yml
 - import_playbook: keycloak.yml
 - import_playbook: mariadb-operator.yml
@@ -8,3 +9,6 @@
 - import_playbook: solr-operator.yml
 - import_playbook: instances.yml
 - import_playbook: ingress.yml
+- import_playbook: dns.yml
+- import_playbook: gitlab.yml
+- import_playbook: dns.yml

@@ -1,7 +1,21 @@
 ---
 - name: Define all the Ingress
   hosts: localhost
+  pre_tasks:
+    - include_tasks: tasks/dns-domain.yml
   tasks:
+    - name: Create Issuer
+      community.kubernetes.k8s:
+        state: "{{ k8s_state }}"
+        namespace: "{{ release_namespace }}"
+        definition:
+          apiVersion: cert-manager.io/v1
+          kind: Issuer
+          metadata:
+            name: ca-issuer
+          spec:
+            ca:
+              secretName: ca-key-pair
     - name: Create Keycloak Ingress
       community.kubernetes.k8s:
         state: "{{ k8s_state }}"
@@ -16,10 +30,10 @@
           spec:
             tls:
               - hosts:
-                  - keycloak.docker.internal
+                  - "keycloak.{{ http_app_routing_domain }}"
                 secretName: keycloak-tls-secret
             rules:
-              - host: keycloak.docker.internal
+              - host: "keycloak.{{ http_app_routing_domain }}"
                 http:
                   paths:
                     - path: /

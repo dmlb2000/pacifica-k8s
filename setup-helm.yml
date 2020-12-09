@@ -26,3 +26,7 @@
       community.kubernetes.helm_repository:
         name: codecentric
         repo_url: "https://codecentric.github.io/helm-charts"
+    - name: Add gitlab chart repo
+      community.kubernetes.helm_repository:
+        name: gitlab
+        repo_url: "https://charts.gitlab.io/"

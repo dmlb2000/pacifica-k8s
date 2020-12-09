@@ -1,0 +1,43 @@
+---
+- name: Setup the DNS names from ingresses
+  hosts: localhost
+  pre_tasks:
+    - include_tasks: tasks/dns-domain.yml
+  tasks:
+    - name: DNS Entries
+      block:
+        - name: Get External Ingress Services
+          k8s_info:
+            api_version: networking.k8s.io/v1
+            kind: Ingress
+          register: web_services
+        - name: Debug the Web Services
+          debug:
+            msg: "{{ web_services }}"
+        - name: Create DNS Entries
+          azure_rm_dnsrecordset:
+            resource_group: "MC_{{ azure_resource_group }}_{{ azure_aks_name }}_{{ azure_location }}"
+            relative_name: "{{ item.metadata.name }}"
+            zone_name: "{{ http_app_routing_domain }}"
+            record_type: A
+            records:
+              - entry: "{{ item.status.loadBalancer.ingress.0.ip }}"
+          loop: "{{ web_services['resources'] }}"
+          retries: 5
+          delay: 3
+          register: result
+          until: not result.failed
+        - name: Create CNAME Entries
+          azure_rm_dnsrecordset:
+            resource_group: "MC_{{ azure_resource_group }}_{{ azure_aks_name }}_{{ azure_location }}"
+            relative_name: "{{ item.1.host | replace('.'+http_app_routing_domain, '') }}"
+            zone_name: "{{ http_app_routing_domain }}"
+            record_type: A
+            records:
+              - entry: "{{ item.0.status.loadBalancer.ingress.0.ip }}"
+          when: "http_app_routing_domain in item.1.host"
+          with_subelements:
+            - "{{ web_services['resources'] }}"
+            - "spec.rules"
+      tags:
+        - dns

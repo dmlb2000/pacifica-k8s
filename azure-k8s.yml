@@ -1,0 +1,60 @@
+---
+- name: Create Azure K8S Service
+  hosts: localhost
+  tasks:
+    - name: Azure Resource Block
+      block:
+        - name: Create Resource Group
+          azure_rm_resourcegroup:
+            location: "{{ azure_location }}"
+            name: "{{ azure_resource_group }}"
+            tags:
+              environment: "{{ azure_username }}"
+        - name: Create AKS Service
+          azure_rm_aks:
+            name: "{{ azure_aks_name }}"
+            enable_rbac: yes
+            network_profile:
+              network_policy: calico
+            resource_group: "{{ azure_resource_group }}"
+            dns_prefix: "{{ azure_aks_name | lower }}"
+            kubernetes_version: "{{ azure_aks_version }}"
+            linux_profile:
+              admin_username: "{{ azure_username }}"
+              ssh_key: "{{ ssh_public_key }}"
+            service_principal:
+              client_id: "{{ aks_client_id }}"
+              client_secret: "{{ aks_client_secret }}"
+            agent_pool_profiles:
+              - name: default
+                count: "{{ azure_aks_count }}"
+                vm_size: "{{ azure_aks_size }}"
+            addon:
+              http_application_routing:
+                enabled: true
+          async: 3600
+          poll: 0
+          register: azure_aks_result
+        - name: Wait for Azure AKS Result
+          async_status:
+            jid: "{{ azure_aks_result.ansible_job_id }}"
+          register: job_result
+          until: job_result.finished
+          retries: 3600
+      tags:
+        - azure
+    - name: Set Kubectl Creds and Context
+      block:
+        - name: Get AKS Credentials
+          shell:
+            cmd: |
+              kubectl config unset users.clusterUser_{{ azure_resource_group }}_{{ azure_aks_name }}
+              kubectl config delete-cluster {{ azure_aks_name }}
+              kubectl config delete-context {{ azure_aks_name }}
+              {{ azure_cli_cmd }} aks get-credentials --resource-group {{ azure_resource_group }} --name {{ azure_aks_name }}
+          args:
+            executable: /bin/bash
+        - name: Set Kubectl Context
+          command: "kubectl config set-context {{ azure_aks_name }}"
+      tags:
+        - kubectl

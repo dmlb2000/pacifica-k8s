@@ -1,0 +1,11 @@
+---
+- name: Get AKS DNS Domain
+  azure_rm_aks_info:
+    name: "{{ azure_aks_name }}"
+    resource_group: "{{ azure_resource_group }}"
+  register: azure_aks_info
+  when: azure_aks_name is defined
+- name: Set HTTP App Domain
+  set_fact:
+    http_app_routing_domain: "{{ azure_aks_info['aks'][0]['properties']['addonProfiles']['httpApplicationRouting']['config']['HTTPApplicationRoutingZoneName'] }}"
+  when: http_app_routing_domain is not defined

@@ -14,6 +14,6 @@
             - name: PROXY_ADDRESS_FORWARDING
               value: "true"
             - name: KEYCLOAK_USER
-              value: admin
+              value: {{ keycloak_auth_username }}
             - name: KEYCLOAK_PASSWORD
-              value: admin
+              value: {{ keycloak_auth_password }}
